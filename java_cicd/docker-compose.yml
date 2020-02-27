@@ -165,7 +165,7 @@ services:
       - ./postgresql:/var/lib/postgresql
       - ./postgresql_data:/var/lib/postgresql/data
 
-  jenkins_master:
+  jenkins:
     restart: unless-stopped
     build: 
       context: ./jenkins/build/
