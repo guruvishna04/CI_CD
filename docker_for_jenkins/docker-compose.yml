@@ -121,6 +121,9 @@ services:
       - "9090:9090"
       - "9093:9093"
       - "9091:9091"
+      - "9000:9090"
+      - "8081:8081"
+      - "5000:5000"
     volumes:
       - ./caddy:/etc/caddy
     environment:
@@ -131,3 +134,56 @@ services:
       - monitor-net
     labels:
       org.label-schema.group: "monitoring"
+
+  sonarqube:
+    restart: unless-stopped
+    image: sonarqube
+    expose:
+      - 9000
+    ports:
+      - "127.0.0.1:9000:9000"
+    networks:
+      - monitor-net
+    environment:
+      - SONARQUBE_JDBC_URL=jdbc:postgresql://db:5432/sonar
+      - SONARQUBE_JDBC_USERNAME=sonar
+      - SONARQUBE_JDBC_PASSWORD=sonar
+    volumes:
+      - ./sonarqube_conf:/opt/sonarqube/conf
+      - ./sonarqube_data:/opt/sonarqube/data
+      - ./sonarqube_extensions:/opt/sonarqube/extensions
+      - ./sonarqube_bundled-plugins:/opt/sonarqube/lib/bundled-plugins
+
+  db:
+    image: postgres
+    networks:
+      - monitor-net
+    environment:
+      - POSTGRES_USER=sonar
+      - POSTGRES_PASSWORD=sonar
+    volumes:
+      - ./postgresql:/var/lib/postgresql
+      - ./postgresql_data:/var/lib/postgresql/data
+
+  jenkins_master:
+    restart: unless-stopped
+    build: 
+      context: ./jenkins/build/
+      # args:
+      #   dockergroupid: ${DOCKER_GROUP_ID}
+    image: gtunon/jenkins_di:beta
+    container_name: jenkins_master
+    volumes:
+      - ./jenkins/jenkins_home:/var/jenkins_home
+      - /etc/localtime:/etc/localtime:ro
+      #specific volumes
+      - /home/ubuntu/dockerImages:/home/ubuntu/dockerImages
+      - built_jars:/home/ubuntu/shared/jars
+      #docker volumes
+      - /usr/bin/docker:/usr/bin/docker
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - monitor-net
+    ports:
+      - "8081:8080"
+      - "50000:50000"
