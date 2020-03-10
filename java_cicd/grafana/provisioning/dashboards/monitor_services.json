@@ -75,7 +75,7 @@
       "tableColumn": "",
       "targets": [
         {
-          "expr": "(time() - process_start_time_seconds{instance=\"localhost:9090\",job=\"prometheus\"})",
+          "expr": "(time() - process_start_time_seconds{instance=\"localhost:8090\",job=\"prometheus\"})",
           "interval": "10s",
           "intervalFactor": 1,
           "legendFormat": "",
@@ -1984,7 +1984,7 @@
         "Failed Compactions": "#bf1b00",
         "Max chunks": "#052B51",
         "Max to persist": "#3F6833",
-        "{instance=\"demo.robustperception.io:9090\",job=\"prometheus\"}": "#bf1b00"
+        "{instance=\"demo.robustperception.io:8090\",job=\"prometheus\"}": "#bf1b00"
       },
       "bars": false,
       "dashLength": 10,

@@ -2,3 +2,5 @@
 .vs/
 .vscode/
 .idea/
+jenkins/jenkins_home/
+sonarqube_data/

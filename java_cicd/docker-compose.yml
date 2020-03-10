@@ -1,4 +1,4 @@
-version: '2.1'
+version: '3.7'
 
 networks:
   monitor-net:
@@ -7,6 +7,13 @@ networks:
 volumes:
     prometheus_data: {}
     grafana_data: {}
+    # sonarqube_conf:
+    # sonarqube_data:
+    # sonarqube_extensions:
+    # sonarqube_bundled-plugins:
+    postgresql:
+    postgresql_data:
+    nexus-data:
 
 services:
 
@@ -30,6 +37,9 @@ services:
       - monitor-net
     labels:
       org.label-schema.group: "monitoring"
+    ports:
+      - "19090:9090"
+    
 
   alertmanager:
     image: prom/alertmanager:v0.20.0
@@ -46,6 +56,8 @@ services:
       - monitor-net
     labels:
       org.label-schema.group: "monitoring"
+    ports:
+      - "19093:9093"
 
   nodeexporter:
     image: prom/node-exporter:v0.18.1
@@ -66,6 +78,8 @@ services:
       - monitor-net
     labels:
       org.label-schema.group: "monitoring"
+    ports:
+      - "19100:9100"
 
   cadvisor:
     image: gcr.io/google-containers/cadvisor:v0.34.0
@@ -83,6 +97,8 @@ services:
       - monitor-net
     labels:
       org.label-schema.group: "monitoring"
+    ports:
+      - "18080:8080"
 
   grafana:
     image: grafana/grafana:6.6.2
@@ -101,6 +117,8 @@ services:
       - monitor-net
     labels:
       org.label-schema.group: "monitoring"
+    ports:
+      - "3000:3000"
 
   pushgateway:
     image: prom/pushgateway:v1.1.0
@@ -112,36 +130,37 @@ services:
       - monitor-net
     labels:
       org.label-schema.group: "monitoring"
-
-  caddy:
-    image: stefanprodan/caddy
-    container_name: caddy
     ports:
-      - "3000:3000"
-      - "9090:9090"
-      - "9093:9093"
-      - "9091:9091"
-      - "9000:9090"
-      - "8081:8081"
-      - "5000:5000"
-    volumes:
-      - ./caddy:/etc/caddy
-    environment:
-      - ADMIN_USER=${ADMIN_USER:-admin}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
-    restart: unless-stopped
-    networks:
-      - monitor-net
-    labels:
-      org.label-schema.group: "monitoring"
+      - "19091:9091"
+
+  # caddy:
+  #   image: stefanprodan/caddy
+  #   container_name: caddy
+  #   ports:
+  #     - "3000:3000"
+  #     - "9095:9095"
+  #     - "9093:9093"
+  #     - "9091:9091"
+  #     - "9000:9095"
+  #     - "8081:8081"
+  #     - "5000:5000"
+  #   volumes:
+  #     - ./caddy:/etc/caddy
+  #   environment:
+  #     - ADMIN_USER=${ADMIN_USER:-admin}
+  #     - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
+  #   restart: unless-stopped
+  #   networks:
+  #     - monitor-net
+  #   labels:
+  #     org.label-schema.group: "monitoring"
 
   sonarqube:
     restart: unless-stopped
     image: sonarqube
+    container_name: sonarqube
     expose:
       - 9000
-    ports:
-      - "127.0.0.1:9000:9000"
     networks:
       - monitor-net
     environment:
@@ -153,17 +172,25 @@ services:
       - ./sonarqube_data:/opt/sonarqube/data
       - ./sonarqube_extensions:/opt/sonarqube/extensions
       - ./sonarqube_bundled-plugins:/opt/sonarqube/lib/bundled-plugins
+    ports:
+      - "19000:9000"
+      - "19002:9002"
+    depends_on:
+      - sonardb
 
-  db:
+  sonardb:
     image: postgres
+    container_name: sonardb
     networks:
       - monitor-net
     environment:
       - POSTGRES_USER=sonar
       - POSTGRES_PASSWORD=sonar
+    ports:
+      - "5432:5432"
     volumes:
-      - ./postgresql:/var/lib/postgresql
-      - ./postgresql_data:/var/lib/postgresql/data
+      - postgresql:/var/lib/postgresql
+      - postgresql_data:/var/lib/postgresql/data
 
   jenkins:
     restart: unless-stopped
@@ -171,19 +198,46 @@ services:
       context: ./jenkins/build/
       # args:
       #   dockergroupid: ${DOCKER_GROUP_ID}
-    image: gtunon/jenkins_di:beta
-    container_name: jenkins_master
+    image: guruvishna04/jenkins_fev:beta
+    container_name: jenkins
     volumes:
       - ./jenkins/jenkins_home:/var/jenkins_home
-      - /etc/localtime:/etc/localtime:ro
-      #specific volumes
-      - /home/ubuntu/dockerImages:/home/ubuntu/dockerImages
-      - built_jars:/home/ubuntu/shared/jars
-      #docker volumes
-      - /usr/bin/docker:/usr/bin/docker
-      - /var/run/docker.sock:/var/run/docker.sock
+      # - /etc/localtime:/etc/localtime:ro
+      # #specific volumes
+      # - /home/ubuntu/dockerImages:/home/ubuntu/dockerImages
+      # - built_jars:/home/ubuntu/shared/jars
+      # #docker volumes
+      # - /usr/bin/docker:/usr/bin/docker
+      # - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - monitor-net
     ports:
-      - "8081:8080"
+      - "28080:8080"
       - "50000:50000"
+    environment:
+      - NEXUS_PORT=18081
+      - SONAR_PORT=9000
+      - SONAR_DB_PORT=5432
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '4'
+    #       memory: 12g
+    #     reservations:
+    #       cpus: '2'
+    #       memory: 8g
+  
+  nexus:
+    container_name: nexus
+    image: sonatype/nexus3
+    restart: always
+    expose:
+      - 8081
+    ports:
+      - "18081:8081"
+    networks:
+      - monitor-net
+    volumes:
+      - nexus-data:/nexus-data
+
+  
